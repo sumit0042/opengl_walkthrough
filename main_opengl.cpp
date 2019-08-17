@@ -8,6 +8,7 @@
 #include<iostream>
 #include<fstream>
 #include<string>
+#include<tuple>
 #include<Windows.h>
 
 #include "Shader.h"
@@ -16,7 +17,7 @@
 using namespace std;
 
 GLuint loadBMP_custom(const char* imagepath);
-
+tuple< GLuint, GLuint, GLuint> CreateFrameBuffer();
 
 
 /*=======================================================================================================================
@@ -319,9 +320,15 @@ int main()
 		bind_texture(program[i]);
 	}
 
+	auto fb = CreateFrameBuffer();
+	glBindFramebufferEXT(GL_FRAMEBUFFER, get<0>(fb));////////////////------------------
+
+	bool fbl = false;
+	bool toggle = true;
 	// Loop until the user closes the window 
 	while (!glfwWindowShouldClose(window))
 	{
+		glEnable(GL_DEPTH_TEST);
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
@@ -334,6 +341,15 @@ int main()
 		for (size_t i = 0; i < no_rects; i++)
 		{
 			glUseProgram(program[i]);
+
+			if (toggle && fbl)
+			{
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, get<1>(fb));
+				GLint locScale2 = glGetUniformLocation(program[i], "sampler1");
+				glUniform1i(locScale2, 0);
+				toggle = false;
+			}
 
 			glm::mat4 view = camera.GetViewMatrix();
 			GLint viewLoc = glGetUniformLocation(program[i], "view");
@@ -348,6 +364,8 @@ int main()
 			glUseProgram(0);
 
 		}
+		fbl = true;
+		glBindFramebufferEXT(GL_FRAMEBUFFER, 0);////////////////------------------
 
 		glfwSwapBuffers(window);
 
@@ -423,6 +441,45 @@ GLuint loadBMP_custom(const char* imagepath)
 	// "Bind" the newly created texture : all future texture functions will modify this texture
 	delete[] data;
 	return textureID;
+}
+
+
+tuple< GLuint, GLuint, GLuint> CreateFrameBuffer()
+{
+	GLuint color_tex = 0, fb = 0, depth_tex = 0;
+	//RGBA8 2D texture, 24 bit depth texture, 256x256
+	glGenTextures(1, &color_tex);
+	glBindTexture(GL_TEXTURE_2D, color_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//NULL means reserve texture memory, but texels are undefined
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1300, 650, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+
+	glGenTextures(1, &depth_tex);
+	glBindTexture(GL_TEXTURE_2D, depth_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+	//NULL means reserve texture memory, but texels are undefined
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, 1300, 650, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+	//-------------------------
+	glGenFramebuffersEXT(1, &fb);
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb);
+	//Attach 2D texture to this FBO
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, color_tex, 0/*mipmap level*/);
+	//-------------------------
+	//Attach depth texture to FBO
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, depth_tex, 0/*mipmap level*/);
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+
+	return tuple< GLuint, GLuint, GLuint>(fb, color_tex, depth_tex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
