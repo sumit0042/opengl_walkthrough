@@ -323,11 +323,19 @@ int main()
 	auto fb = CreateFrameBuffer();
 	glBindFramebufferEXT(GL_FRAMEBUFFER, get<0>(fb));////////////////------------------
 
-	bool fbl = false;
+	bool fbl = true;
 	bool toggle = true;
 	// Loop until the user closes the window 
 	while (!glfwWindowShouldClose(window))
 	{
+		if (fbl)
+		{
+			glBindFramebufferEXT(GL_FRAMEBUFFER, get<0>(fb));////////////////------------------
+		}
+		else
+		{
+			glBindFramebufferEXT(GL_FRAMEBUFFER, 0);////////////////------------------
+		}
 		glEnable(GL_DEPTH_TEST);
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
@@ -342,7 +350,7 @@ int main()
 		{
 			glUseProgram(program[i]);
 
-			if (toggle && fbl)
+			if (/*toggle && */fbl)
 			{
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, get<1>(fb));
