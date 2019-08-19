@@ -364,7 +364,7 @@ int main()
 			glUseProgram(0);
 
 		}
-		fbl = true;
+		fbl = !fbl;
 		glBindFramebufferEXT(GL_FRAMEBUFFER, 0);////////////////------------------
 
 		glfwSwapBuffers(window);
